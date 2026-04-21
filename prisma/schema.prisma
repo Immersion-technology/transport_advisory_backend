@@ -1,0 +1,322 @@
+generator client {
+  provider = "prisma-client-js"
+}
+
+datasource db {
+  provider = "postgresql"
+  url      = env("DATABASE_URL")
+}
+
+enum UserRole {
+  USER
+  ADMIN
+}
+
+enum SubscriptionTier {
+  FOUNDING_FREE
+  STANDARD
+  FLEET
+}
+
+enum DocumentType {
+  MOTOR_INSURANCE
+  VEHICLE_LICENSE
+  ROADWORTHINESS
+  HACKNEY_PERMIT
+}
+
+enum ApplicationStatus {
+  PENDING
+  PROCESSING
+  SUBMITTED
+  READY
+  DELIVERED
+  CANCELLED
+}
+
+enum ApplicationKind {
+  RENEWAL
+  FRESH
+}
+
+enum AdminPermission {
+  MANAGE_APPLICATIONS
+  MANAGE_USERS
+  MANAGE_DELIVERIES
+  MANAGE_REMINDERS
+  MANAGE_ADMINS
+}
+
+enum DeliveryTier {
+  STANDARD
+  EXPRESS
+  SAME_DAY
+}
+
+enum DeliveryStatus {
+  PENDING
+  DISPATCHED
+  DELIVERED
+}
+
+enum ReminderChannel {
+  EMAIL
+  SMS
+  WHATSAPP
+}
+
+model User {
+  id                String            @id @default(uuid())
+  email             String            @unique
+  phone             String            @unique
+  password          String
+  firstName         String
+  lastName          String
+  role              UserRole          @default(USER)
+  permissions       AdminPermission[] @default([])
+  isSuperAdmin      Boolean           @default(false)
+  subscriptionTier  SubscriptionTier  @default(FOUNDING_FREE)
+  subscriberNumber  Int?              @unique
+  isActive          Boolean           @default(true)
+  emailVerified     Boolean           @default(false)
+  createdAt         DateTime          @default(now())
+  updatedAt         DateTime          @updatedAt
+
+  vehicles          Vehicle[]
+  applications      Application[]
+  verifications     VehicleVerification[]
+  notifications     NotificationLog[]
+  reminderPrefs     ReminderPreference[]
+
+  @@map("users")
+}
+
+model Vehicle {
+  id                  String   @id @default(uuid())
+  userId              String
+  plateNumber         String
+  make                String
+  model               String
+  year                Int
+  stateOfRegistration String
+  isActive            Boolean  @default(true)
+  createdAt           DateTime @default(now())
+  updatedAt           DateTime @updatedAt
+
+  user                User       @relation(fields: [userId], references: [id], onDelete: Cascade)
+  documents           Document[]
+  applications        Application[]
+
+  @@unique([userId, plateNumber])
+  @@map("vehicles")
+}
+
+model Document {
+  id              String       @id @default(uuid())
+  vehicleId       String
+  type            DocumentType
+  expiryDate      DateTime
+  isAutoPopulated Boolean      @default(false)
+  fileUrl         String?
+  filePublicId    String?
+  notes           String?
+  createdAt       DateTime     @default(now())
+  updatedAt       DateTime     @updatedAt
+
+  vehicle         Vehicle      @relation(fields: [vehicleId], references: [id], onDelete: Cascade)
+  reminderLogs    ReminderLog[]
+
+  @@unique([vehicleId, type])
+  @@map("documents")
+}
+
+model ReminderLog {
+  id              String          @id @default(uuid())
+  documentId      String
+  triggerDays     Int
+  channel         ReminderChannel
+  sentAt          DateTime        @default(now())
+  confirmedAt     DateTime?
+  confirmToken    String?         @unique
+  isConfirmed     Boolean         @default(false)
+
+  document        Document        @relation(fields: [documentId], references: [id], onDelete: Cascade)
+
+  @@map("reminder_logs")
+}
+
+model ReminderPreference {
+  id          String          @id @default(uuid())
+  userId      String
+  channel     ReminderChannel
+  isActive    Boolean         @default(true)
+  triggerDays Int[]
+
+  user        User            @relation(fields: [userId], references: [id], onDelete: Cascade)
+
+  @@unique([userId, channel])
+  @@map("reminder_preferences")
+}
+
+model Application {
+  id              String            @id @default(uuid())
+  userId          String
+  vehicleId       String
+  documentType    DocumentType
+  kind            ApplicationKind   @default(RENEWAL)
+  status          ApplicationStatus @default(PENDING)
+  governmentFee   Float
+  serviceFee      Float
+  totalAmount     Float
+  paystackRef     String?
+  isPaid          Boolean           @default(false)
+  paidAt          DateTime?
+  notes           String?
+  completedFileUrl String?
+  completedFilePublicId String?
+  completedAt     DateTime?
+  createdAt       DateTime          @default(now())
+  updatedAt       DateTime          @updatedAt
+
+  user            User              @relation(fields: [userId], references: [id], onDelete: Cascade)
+  vehicle         Vehicle           @relation(fields: [vehicleId], references: [id], onDelete: Cascade)
+  documents       ApplicationDocument[]
+  delivery        Delivery?
+  statusHistory   ApplicationStatusHistory[]
+
+  @@map("applications")
+}
+
+model ApplicationDocument {
+  id              String      @id @default(uuid())
+  applicationId   String
+  fileName        String
+  fileUrl         String
+  filePublicId    String
+  fileType        String
+  uploadedAt      DateTime    @default(now())
+
+  application     Application @relation(fields: [applicationId], references: [id], onDelete: Cascade)
+
+  @@map("application_documents")
+}
+
+model ApplicationStatusHistory {
+  id            String            @id @default(uuid())
+  applicationId String
+  status        ApplicationStatus
+  notes         String?
+  changedAt     DateTime          @default(now())
+  changedBy     String?
+
+  application   Application       @relation(fields: [applicationId], references: [id], onDelete: Cascade)
+
+  @@map("application_status_history")
+}
+
+model Delivery {
+  id              String         @id @default(uuid())
+  applicationId   String         @unique
+  tier            DeliveryTier
+  status          DeliveryStatus @default(PENDING)
+  address         String
+  city            String
+  state           String
+  recipientName   String
+  recipientPhone  String
+  fee             Float
+  trackingCode    String?
+  dispatchedAt    DateTime?
+  deliveredAt     DateTime?
+  createdAt       DateTime       @default(now())
+  updatedAt       DateTime       @updatedAt
+
+  application     Application    @relation(fields: [applicationId], references: [id], onDelete: Cascade)
+
+  @@map("deliveries")
+}
+
+model VehicleVerification {
+  id              String   @id @default(uuid())
+  userId          String?
+  plateNumber     String
+  reportData      Json
+  fee             Float    @default(1000)
+  paystackRef     String?
+  isPaid          Boolean  @default(false)
+  createdAt       DateTime @default(now())
+
+  user            User?    @relation(fields: [userId], references: [id], onDelete: SetNull)
+
+  @@map("vehicle_verifications")
+}
+
+model NotificationLog {
+  id        String          @id @default(uuid())
+  userId    String
+  channel   ReminderChannel
+  subject   String
+  message   String
+  status    String
+  sentAt    DateTime        @default(now())
+
+  user      User            @relation(fields: [userId], references: [id], onDelete: Cascade)
+
+  @@map("notification_logs")
+}
+
+model PlateRegistry {
+  id                  String    @id @default(uuid())
+  plateNumber         String    @unique
+
+  // Vehicle info
+  make                String?
+  model               String?
+  year                Int?
+  color               String?
+  registeredState     String?
+  ownerName           String?
+
+  // Motor Insurance (as NIID would return)
+  insurer             String?
+  policyNumber        String?
+  insuranceStartDate  DateTime?
+  insuranceExpiryDate DateTime?
+  insuranceCoverType  String?
+  insuranceStatus     String?
+
+  // Vehicle License (as AutoReg would return)
+  licenseNumber       String?
+  licenseIssueDate    DateTime?
+  licenseExpiryDate   DateTime?
+  licenseStatus       String?
+
+  // Roadworthiness (as DVIS would return)
+  rwCertNumber        String?
+  rwInspectionDate    DateTime?
+  rwExpiryDate        DateTime?
+  rwStatus            String?
+
+  // Hackney Permit (commercial)
+  hackneyPermitNumber String?
+  hackneyIssueDate    DateTime?
+  hackneyExpiryDate   DateTime?
+  hackneyOperator     String?
+  hackneyStatus       String?
+
+  notes               String?
+  createdById         String?
+  createdAt           DateTime  @default(now())
+  updatedAt           DateTime  @updatedAt
+
+  @@map("plate_registry")
+}
+
+model SystemConfig {
+  id        String   @id @default(uuid())
+  key       String   @unique
+  value     String
+  updatedAt DateTime @updatedAt
+
+  @@map("system_config")
+}
