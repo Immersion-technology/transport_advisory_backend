@@ -1,6 +1,6 @@
-# Transport Advisory — Backend
+# AutoDoc — Backend
 
-Vehicle compliance and document management API for Nigerian vehicle owners.
+Vehicle compliance and document management API for Nigerian vehicle owners (privately owned — not government affiliated).
 
 ## Tech Stack
 

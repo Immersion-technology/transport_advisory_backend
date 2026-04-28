@@ -1,7 +1,7 @@
 {
-  "name": "transport_advisory_backend",
+  "name": "autodoc-backend",
   "version": "1.0.0",
-  "description": "Transport Advisory - Vehicle Compliance Platform Backend",
+  "description": "AutoDoc - Vehicle Compliance Platform Backend (Not government owned)",
   "main": "dist/index.js",
   "scripts": {
     "dev": "nodemon --exec ts-node src/index.ts",

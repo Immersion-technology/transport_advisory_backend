@@ -45,7 +45,7 @@ app.use('/api/reminders', reminderRoutes);
 app.use((_req, res) => res.status(404).json({ success: false, message: 'Route not found' }));
 
 app.listen(PORT, () => {
-  console.log(`\n🚀 Transport Advisory API running on port ${PORT}`);
+  console.log(`\n🚀 AutoDoc API running on port ${PORT}`);
   console.log(`   Environment: ${process.env.NODE_ENV}`);
   startReminderJob();
 });

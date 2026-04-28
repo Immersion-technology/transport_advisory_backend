@@ -65,11 +65,18 @@ enum ReminderChannel {
   WHATSAPP
 }
 
+enum MagicLinkPurpose {
+  WELCOME
+  LOGIN
+}
+
 model User {
   id                String            @id @default(uuid())
   email             String            @unique
   phone             String            @unique
-  password          String
+  // Optional — users created via the auto-checkout flow start without a password
+  // and authenticate via magic-link until they set one in settings.
+  password          String?
   firstName         String
   lastName          String
   role              UserRole          @default(USER)
@@ -87,6 +94,7 @@ model User {
   verifications     VehicleVerification[]
   notifications     NotificationLog[]
   reminderPrefs     ReminderPreference[]
+  magicLinks        MagicLinkToken[]
 
   @@map("users")
 }
@@ -310,6 +318,21 @@ model PlateRegistry {
   updatedAt           DateTime  @updatedAt
 
   @@map("plate_registry")
+}
+
+model MagicLinkToken {
+  id          String           @id @default(uuid())
+  userId      String
+  token       String           @unique
+  purpose     MagicLinkPurpose @default(LOGIN)
+  expiresAt   DateTime
+  consumedAt  DateTime?
+  createdAt   DateTime         @default(now())
+
+  user        User             @relation(fields: [userId], references: [id], onDelete: Cascade)
+
+  @@index([userId])
+  @@map("magic_link_tokens")
 }
 
 model SystemConfig {
