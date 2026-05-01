@@ -6,6 +6,7 @@ import prisma from '../utils/prisma';
 import { sendSuccess, sendError } from '../utils/response';
 import { AuthRequest } from '../types';
 import { issueMagicLink, sendMagicLinkEmail, consumeMagicLink as consumeToken } from '../services/magicLinkService';
+import { quoteForCategoryDocument } from '../services/pricingService';
 
 const signToken = (id: string, email: string, role: string): string =>
   jwt.sign(
@@ -99,11 +100,38 @@ export const login = async (req: Request, res: Response): Promise<void> => {
  */
 export const checkout = async (req: Request, res: Response): Promise<void> => {
   try {
-    const { firstName, lastName, email, phone, vehicle: vehicleInput, service } = req.body;
+    const {
+      firstName, lastName, othernames, email, phone, gender, address,
+      vehicle: vehicleInput, service,
+    } = req.body;
 
+    const kind = service?.kind === 'FRESH' ? 'FRESH' : 'RENEWAL';
+
+    // Universal requirements
     if (!firstName || !lastName || !email || !phone || !vehicleInput?.plateNumber || !service?.documentType) {
       sendError(res, 'Missing required fields: firstName, lastName, email, phone, vehicle.plateNumber, service.documentType', 400);
       return;
+    }
+    if (service.documentType === 'CHANGE_OF_OWNERSHIP' && kind !== 'FRESH') {
+      sendError(res, 'Change of ownership is only available as a new application.', 400);
+      return;
+    }
+    // Fresh applications must include the vehicle category for pricing,
+    // plus the user-supplied vehicle and applicant details.
+    if (kind === 'FRESH') {
+      const missing: string[] = [];
+      if (!vehicleInput.categoryId) missing.push('vehicle.categoryId');
+      if (!vehicleInput.make) missing.push('vehicle.make');
+      if (!vehicleInput.model) missing.push('vehicle.model');
+      if (!vehicleInput.colour) missing.push('vehicle.colour');
+      if (!vehicleInput.chassisNumber) missing.push('vehicle.chassisNumber');
+      if (!vehicleInput.engineNumber) missing.push('vehicle.engineNumber');
+      if (!gender) missing.push('gender');
+      if (!address) missing.push('address');
+      if (missing.length) {
+        sendError(res, `New applications require: ${missing.join(', ')}`, 400);
+        return;
+      }
     }
 
     const normalizedEmail = String(email).trim().toLowerCase();
@@ -118,9 +146,6 @@ export const checkout = async (req: Request, res: Response): Promise<void> => {
     let isNewUser = false;
     if (!user) {
       isNewUser = true;
-      // No subscription model — every account is treated equally. The schema's
-      // subscriptionTier field is left at its default (legacy field, kept to
-      // avoid an extra migration; nothing in the UI references it any more).
       user = await prisma.user.create({
         data: {
           id: uuid(),
@@ -128,27 +153,77 @@ export const checkout = async (req: Request, res: Response): Promise<void> => {
           phone: normalizedPhone,
           firstName: String(firstName).trim(),
           lastName: String(lastName).trim(),
+          othernames: othernames ? String(othernames).trim() : null,
+          gender: gender || null,
+          address: address ? String(address).trim() : null,
           // Password intentionally left null — user authenticates via magic link
         },
       });
+    } else if (kind === 'FRESH') {
+      // Top up missing applicant fields on a returning user — never overwrite
+      // existing ones (so we don't trash a user's saved profile if they
+      // re-submit with stale data).
+      const updates: Record<string, any> = {};
+      if (!user.othernames && othernames) updates.othernames = String(othernames).trim();
+      if (!user.gender && gender) updates.gender = gender;
+      if (!user.address && address) updates.address = String(address).trim();
+      if (Object.keys(updates).length) {
+        user = await prisma.user.update({ where: { id: user.id }, data: updates });
+      }
     }
 
     // Find or create the vehicle on this user's account.
     let vehicle = await prisma.vehicle.findUnique({
       where: { userId_plateNumber: { userId: user.id, plateNumber: normalizedPlate } },
     });
+
     if (!vehicle) {
+      // RENEWAL: only the plate is captured. Vehicle is created unverified;
+      // admin populates the rest during verification before payment opens up.
+      // FRESH: user supplies everything, so we mark the vehicle verified
+      // immediately and pricing can be computed.
       vehicle = await prisma.vehicle.create({
         data: {
           id: uuid(),
           userId: user.id,
           plateNumber: normalizedPlate,
-          make: vehicleInput.make || 'Unknown',
-          model: vehicleInput.model || 'Unknown',
-          year: Number(vehicleInput.year) || new Date().getFullYear(),
-          stateOfRegistration: vehicleInput.stateOfRegistration || 'Lagos',
+          make: vehicleInput.make || null,
+          model: vehicleInput.model || null,
+          year: vehicleInput.year ? Number(vehicleInput.year) : null,
+          stateOfRegistration: vehicleInput.stateOfRegistration || null,
+          colour: vehicleInput.colour || null,
+          chassisNumber: vehicleInput.chassisNumber || null,
+          engineNumber: vehicleInput.engineNumber || null,
+          chassisPhotoUrl: vehicleInput.chassisPhotoUrl || null,
+          chassisPhotoPublicId: vehicleInput.chassisPhotoPublicId || null,
+          licensePhotoUrl: vehicleInput.licensePhotoUrl || null,
+          licensePhotoPublicId: vehicleInput.licensePhotoPublicId || null,
+          categoryId: vehicleInput.categoryId || null,
+          isVerified: kind === 'FRESH',
+          verifiedAt: kind === 'FRESH' ? new Date() : null,
         },
       });
+    } else if (kind === 'FRESH') {
+      // Top up missing fields on existing vehicle for fresh apps
+      const updates: Record<string, any> = {};
+      if (!vehicle.make && vehicleInput.make) updates.make = vehicleInput.make;
+      if (!vehicle.model && vehicleInput.model) updates.model = vehicleInput.model;
+      if (!vehicle.colour && vehicleInput.colour) updates.colour = vehicleInput.colour;
+      if (!vehicle.chassisNumber && vehicleInput.chassisNumber) updates.chassisNumber = vehicleInput.chassisNumber;
+      if (!vehicle.engineNumber && vehicleInput.engineNumber) updates.engineNumber = vehicleInput.engineNumber;
+      if (!vehicle.categoryId && vehicleInput.categoryId) updates.categoryId = vehicleInput.categoryId;
+      if (!vehicle.year && vehicleInput.year) updates.year = Number(vehicleInput.year);
+      if (vehicleInput.chassisPhotoUrl) {
+        updates.chassisPhotoUrl = vehicleInput.chassisPhotoUrl;
+        updates.chassisPhotoPublicId = vehicleInput.chassisPhotoPublicId;
+      }
+      if (vehicleInput.licensePhotoUrl) {
+        updates.licensePhotoUrl = vehicleInput.licensePhotoUrl;
+        updates.licensePhotoPublicId = vehicleInput.licensePhotoPublicId;
+      }
+      if (Object.keys(updates).length) {
+        vehicle = await prisma.vehicle.update({ where: { id: vehicle.id }, data: updates });
+      }
     }
 
     // Reject duplicate active applications (mirrors createApplication).
@@ -164,24 +239,32 @@ export const checkout = async (req: Request, res: Response): Promise<void> => {
       return;
     }
 
-    // Pricing (mirrors applicationController fee tables).
-    const RENEWAL: Record<string, { gov: number; service: number }> = {
-      ROADWORTHINESS: { gov: 12000, service: 2000 },
-      VEHICLE_LICENSE: { gov: 15000, service: 2500 },
-      MOTOR_INSURANCE: { gov: 15000, service: 1500 },
-      HACKNEY_PERMIT: { gov: 0, service: 2500 },
-    };
-    const FRESH: Record<string, { gov: number; service: number }> = {
-      ROADWORTHINESS: { gov: 12000, service: 3500 },
-      VEHICLE_LICENSE: { gov: 15000, service: 3500 },
-      MOTOR_INSURANCE: { gov: 15000, service: 3500 },
-      HACKNEY_PERMIT: { gov: 0, service: 3500 },
-    };
-    const kind = service.kind === 'FRESH' ? 'FRESH' : 'RENEWAL';
-    const fees = (kind === 'FRESH' ? FRESH : RENEWAL)[service.documentType] || { gov: 0, service: 3500 };
+    // ── Pricing ──────────────────────────────────────────────────────────
+    // FRESH: compute total now from the (category, document) pricing matrix
+    //        + 15% VAT-inclusive service fee + delivery fee.
+    // RENEWAL: total is unknown until admin verifies the vehicle and assigns
+    //          a category. We persist the application with totalAmount=0 and
+    //          gate `initPayment` on `vehicle.isVerified`.
     const d = service.delivery;
     const deliveryFee = d?.tier === 'SAME_DAY' ? 8000 : d?.tier === 'EXPRESS' ? 4500 : d?.tier === 'STANDARD' ? 2000 : 0;
-    const total = fees.gov + fees.service + deliveryFee;
+
+    let governmentFee = 0;
+    let serviceFee = 0;
+    let totalAmount = 0;
+    let pricingNotes: string | null = null;
+
+    if (kind === 'FRESH' && vehicle.categoryId) {
+      try {
+        const quote = await quoteForCategoryDocument(vehicle.categoryId, service.documentType);
+        governmentFee = quote.basePrice;
+        serviceFee = quote.serviceFee;
+        totalAmount = quote.total + deliveryFee;
+        pricingNotes = quote.notes ?? null;
+      } catch (err: any) {
+        sendError(res, err.message || 'Pricing not available for this category and document.', 400);
+        return;
+      }
+    }
 
     const application = await prisma.application.create({
       data: {
@@ -190,16 +273,17 @@ export const checkout = async (req: Request, res: Response): Promise<void> => {
         vehicleId: vehicle.id,
         documentType: service.documentType,
         kind,
-        governmentFee: fees.gov,
-        serviceFee: fees.service,
-        totalAmount: total,
+        governmentFee,
+        serviceFee,
+        totalAmount,
+        notes: pricingNotes,
         ...(d && d.tier && {
           delivery: {
             create: {
               id: uuid(),
               tier: d.tier,
               fee: deliveryFee,
-              address: d.address || '',
+              address: d.address || user.address || '',
               city: d.city || '',
               state: d.state || 'Lagos',
               recipientName: d.recipientName || `${user.firstName} ${user.lastName}`,
@@ -211,7 +295,12 @@ export const checkout = async (req: Request, res: Response): Promise<void> => {
           create: {
             id: uuid(),
             status: 'PENDING',
-            notes: isNewUser ? 'Application created via auto-checkout (new account)' : 'Application created via auto-checkout',
+            notes:
+              kind === 'RENEWAL'
+                ? 'Renewal request created — awaiting admin vehicle verification'
+                : isNewUser
+                ? 'Application created via auto-checkout (new account)'
+                : 'Application created via auto-checkout',
           },
         },
       },

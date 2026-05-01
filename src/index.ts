@@ -10,6 +10,7 @@ import applicationRoutes from './routes/applications';
 import verificationRoutes from './routes/verifications';
 import adminRoutes from './routes/admin';
 import reminderRoutes from './routes/reminders';
+import publicRoutes from './routes/public';
 import { startReminderJob } from './jobs/reminderJob';
 import { globalLimiter } from './middleware/rateLimit';
 
@@ -35,6 +36,7 @@ app.get('/health', (_req, res) => res.json({ status: 'ok', timestamp: new Date()
 // Apply the global limiter to everything under /api
 app.use('/api', globalLimiter);
 
+app.use('/api/public', publicRoutes);
 app.use('/api/auth', authRoutes);
 app.use('/api/vehicles', vehicleRoutes);
 app.use('/api/applications', applicationRoutes);
@@ -45,7 +47,7 @@ app.use('/api/reminders', reminderRoutes);
 app.use((_req, res) => res.status(404).json({ success: false, message: 'Route not found' }));
 
 app.listen(PORT, () => {
-  console.log(`\n🚀 AutoDoc API running on port ${PORT}`);
+  console.log(`\n🚀 Transport Advisory Services API running on port ${PORT}`);
   console.log(`   Environment: ${process.env.NODE_ENV}`);
   startReminderJob();
 });

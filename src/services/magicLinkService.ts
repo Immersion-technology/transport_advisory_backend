@@ -35,8 +35,8 @@ export const sendMagicLinkEmail = async (params: {
   const link = `${baseUrl}/auth/magic/${token}`;
 
   const subject = purpose === 'WELCOME'
-    ? 'Welcome to AutoDoc — your account is ready'
-    : 'Your AutoDoc login link';
+    ? 'Welcome to Transport Advisory Services — your account is ready'
+    : 'Your Transport Advisory Services login link';
 
   await sendEmail({
     to: email,

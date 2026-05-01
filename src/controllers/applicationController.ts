@@ -5,20 +5,7 @@ import { sendSuccess, sendError } from '../utils/response';
 import { AuthRequest } from '../types';
 import { uploadFile } from '../services/cloudinaryService';
 import { initializeTransaction, verifyTransaction } from '../services/paystackService';
-
-// Fee schedule — renewal vs fresh
-const RENEWAL_FEES: Record<string, { gov: number; service: number }> = {
-  ROADWORTHINESS: { gov: 12000, service: 2000 },
-  VEHICLE_LICENSE: { gov: 15000, service: 2500 },
-  MOTOR_INSURANCE: { gov: 15000, service: 1500 },
-  HACKNEY_PERMIT: { gov: 0, service: 2500 },
-};
-const FRESH_FEES: Record<string, { gov: number; service: number }> = {
-  ROADWORTHINESS: { gov: 12000, service: 3500 },
-  VEHICLE_LICENSE: { gov: 15000, service: 3500 },
-  MOTOR_INSURANCE: { gov: 15000, service: 3500 },
-  HACKNEY_PERMIT: { gov: 0, service: 3500 },
-};
+import { quoteForCategoryDocument } from '../services/pricingService';
 
 export const createApplication = async (req: AuthRequest, res: Response): Promise<void> => {
   try {
@@ -42,10 +29,30 @@ export const createApplication = async (req: AuthRequest, res: Response): Promis
       return;
     }
 
-    const feeTable = kind === 'FRESH' ? FRESH_FEES : RENEWAL_FEES;
-    const fees = feeTable[documentType] || { gov: 0, service: 3500 };
+    // Pricing is driven by (vehicle.category, documentType). Renewals on
+    // unverified vehicles still create the application, but with totalAmount=0
+    // — payment is gated until admin verifies and assigns a category.
     const deliveryFee = deliveryTier === 'SAME_DAY' ? 8000 : deliveryTier === 'EXPRESS' ? 4500 : deliveryTier === 'STANDARD' ? 2000 : 0;
-    const total = fees.gov + fees.service + deliveryFee;
+    let governmentFee = 0;
+    let serviceFee = 0;
+    let total = 0;
+    let pricingNotes: string | null = null;
+
+    if (vehicle.categoryId && (kind === 'FRESH' || vehicle.isVerified)) {
+      try {
+        const quote = await quoteForCategoryDocument(vehicle.categoryId, documentType);
+        governmentFee = quote.basePrice;
+        serviceFee = quote.serviceFee;
+        total = quote.total + deliveryFee;
+        pricingNotes = quote.notes ?? null;
+      } catch (err: any) {
+        sendError(res, err.message || 'Pricing not available for this category and document.', 400);
+        return;
+      }
+    } else if (kind === 'FRESH') {
+      sendError(res, 'Vehicle category is required for new applications. Add the vehicle with category before creating the application.', 400);
+      return;
+    }
 
     const application = await prisma.application.create({
       data: {
@@ -54,9 +61,10 @@ export const createApplication = async (req: AuthRequest, res: Response): Promis
         vehicleId,
         documentType,
         kind,
-        governmentFee: fees.gov,
-        serviceFee: fees.service,
+        governmentFee,
+        serviceFee,
         totalAmount: total,
+        notes: pricingNotes,
         ...(deliveryTier && {
           delivery: {
             create: {
@@ -123,9 +131,49 @@ export const initPayment = async (req: AuthRequest, res: Response): Promise<void
     const user = await prisma.user.findUnique({ where: { id: req.user!.id } });
     const application = await prisma.application.findFirst({
       where: { id: applicationId, userId: req.user!.id },
+      include: { vehicle: true, delivery: true },
     });
     if (!application || !user) { sendError(res, 'Application not found', 404); return; }
     if (application.isPaid) { sendError(res, 'Already paid', 400); return; }
+
+    // Renewal payments are gated on admin verification of the vehicle. For
+    // unverified vehicles we don't yet have category-based pricing, so the
+    // total is still 0 — we recompute it on-demand here so a freshly verified
+    // vehicle becomes payable without the user re-submitting.
+    if (!application.vehicle.isVerified) {
+      sendError(
+        res,
+        'This vehicle is awaiting admin verification. We\'ll email you as soon as it\'s ready to pay.',
+        409,
+      );
+      return;
+    }
+    if (application.totalAmount === 0 && application.vehicle.categoryId) {
+      try {
+        const quote = await quoteForCategoryDocument(application.vehicle.categoryId, application.documentType);
+        const deliveryFee = application.delivery?.fee || 0;
+        const newTotal = quote.total + deliveryFee;
+        await prisma.application.update({
+          where: { id: application.id },
+          data: {
+            governmentFee: quote.basePrice,
+            serviceFee: quote.serviceFee,
+            totalAmount: newTotal,
+            notes: quote.notes ?? application.notes,
+          },
+        });
+        application.governmentFee = quote.basePrice;
+        application.serviceFee = quote.serviceFee;
+        application.totalAmount = newTotal;
+      } catch (err: any) {
+        sendError(res, err.message || 'Pricing not configured for this vehicle category.', 400);
+        return;
+      }
+    }
+    if (application.totalAmount <= 0) {
+      sendError(res, 'Application total is not yet computed. Please wait for admin pricing setup.', 409);
+      return;
+    }
 
     const ref = `TA-${applicationId.slice(0, 8).toUpperCase()}-${Date.now()}`;
     const { authorizationUrl, reference } = await initializeTransaction({

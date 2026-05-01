@@ -10,6 +10,10 @@ import {
 import {
   getRegistryEntries, upsertRegistryEntry, seedFromUserVehicles, deleteRegistryEntry,
 } from '../controllers/plateRegistryController';
+import {
+  getAdminPricing, upsertPricing, createCategory, updateCategory,
+  updateServiceFeeRate, verifyVehicle, listUnverifiedVehicles,
+} from '../controllers/pricingController';
 import { authenticate, requireAdmin, requireSuperAdmin, requirePermission } from '../middleware/auth';
 import { upload } from '../middleware/upload';
 
@@ -41,6 +45,18 @@ router.get('/registry', requirePermission('MANAGE_APPLICATIONS'), getRegistryEnt
 router.post('/registry', requirePermission('MANAGE_APPLICATIONS'), upsertRegistryEntry);
 router.post('/registry/seed-from-user/:userId', requirePermission('MANAGE_APPLICATIONS'), seedFromUserVehicles);
 router.delete('/registry/:id', requirePermission('MANAGE_APPLICATIONS'), deleteRegistryEntry);
+
+// Pricing matrix + service-fee rate — needs MANAGE_APPLICATIONS to view/edit
+router.get('/pricing', requirePermission('MANAGE_APPLICATIONS'), getAdminPricing);
+router.put('/pricing', requirePermission('MANAGE_APPLICATIONS'), upsertPricing);
+router.post('/pricing/categories', requirePermission('MANAGE_APPLICATIONS'), createCategory);
+router.put('/pricing/categories/:id', requirePermission('MANAGE_APPLICATIONS'), updateCategory);
+router.put('/pricing/service-fee-rate', requireSuperAdmin, updateServiceFeeRate);
+
+// Vehicle verification queue — admin populates fields from check websites
+// before user can complete renewal payment.
+router.get('/vehicles/unverified', requirePermission('MANAGE_APPLICATIONS'), listUnverifiedVehicles);
+router.put('/vehicles/:id/verify', requirePermission('MANAGE_APPLICATIONS'), verifyVehicle);
 
 // Admin staff management — super admin only
 router.get('/staff', requireSuperAdmin, getAllAdmins);

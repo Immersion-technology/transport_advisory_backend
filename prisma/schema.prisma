@@ -23,6 +23,7 @@ enum DocumentType {
   VEHICLE_LICENSE
   ROADWORTHINESS
   HACKNEY_PERMIT
+  CHANGE_OF_OWNERSHIP
 }
 
 enum ApplicationStatus {
@@ -70,6 +71,13 @@ enum MagicLinkPurpose {
   LOGIN
 }
 
+enum Gender {
+  MALE
+  FEMALE
+  OTHER
+  PREFER_NOT_TO_SAY
+}
+
 model User {
   id                String            @id @default(uuid())
   email             String            @unique
@@ -79,6 +87,11 @@ model User {
   password          String?
   firstName         String
   lastName          String
+  // Additional applicant fields collected on fresh-application step 3.
+  // Optional so legacy users (created before this change) remain valid.
+  othernames        String?
+  gender            Gender?
+  address           String?
   role              UserRole          @default(USER)
   permissions       AdminPermission[] @default([])
   isSuperAdmin      Boolean           @default(false)
@@ -103,20 +116,91 @@ model Vehicle {
   id                  String   @id @default(uuid())
   userId              String
   plateNumber         String
-  make                String
-  model               String
-  year                Int
-  stateOfRegistration String
+  // Vehicle make/model/year/state are now optional. For renewal applications
+  // the user supplies only the plate number on /start, and admin populates
+  // these fields during the verification step. For fresh applications the
+  // user fills them in on step 2 and they're saved immediately.
+  make                String?
+  model               String?
+  year                Int?
+  stateOfRegistration String?
+  // Extended details — admin-populated on renewal verification, user-supplied
+  // on fresh applications.
+  colour              String?
+  chassisNumber       String?
+  engineNumber        String?
+  registrationNumber  String?
+  rwcNumber           String?
+  // Photos uploaded by user (chassis #) or admin (license, etc.)
+  chassisPhotoUrl     String?
+  chassisPhotoPublicId String?
+  licensePhotoUrl     String?
+  licensePhotoPublicId String?
+  // Pricing category — admin assigns during verification on renewal,
+  // user picks during fresh application step 2.
+  categoryId          String?
+  // Verification gate. Renewals can't proceed to payment until admin sets
+  // this to true (after populating make/model/category/RWC#/expirations).
+  // Fresh applications create the vehicle as already-verified since the user
+  // supplies all the data themselves.
+  isVerified          Boolean  @default(false)
+  verifiedAt          DateTime?
+  verifiedById        String?
   isActive            Boolean  @default(true)
   createdAt           DateTime @default(now())
   updatedAt           DateTime @updatedAt
 
   user                User       @relation(fields: [userId], references: [id], onDelete: Cascade)
+  category            VehicleCategory? @relation(fields: [categoryId], references: [id], onDelete: SetNull)
   documents           Document[]
   applications        Application[]
 
   @@unique([userId, plateNumber])
+  @@index([categoryId])
   @@map("vehicles")
+}
+
+/**
+ * Vehicle categorisation used for pricing. Seeded with Saloon / SUV / Pickup
+ * / Bus (mini, mid, max) / Truck (10-tyre, 14-tyre, more) / Other; admin can
+ * add more from the admin pricing page.
+ */
+model VehicleCategory {
+  id          String   @id @default(uuid())
+  key         String   @unique  // "saloon", "suv", "pickup", "bus_mini", ...
+  label       String              // "Saloon Vehicles"
+  description String?
+  sortOrder   Int      @default(0)
+  isActive    Boolean  @default(true)
+  createdAt   DateTime @default(now())
+  updatedAt   DateTime @updatedAt
+
+  pricing     DocumentPricing[]
+  vehicles    Vehicle[]
+
+  @@map("vehicle_categories")
+}
+
+/**
+ * Per-(category, document) base price. Service fee is computed at checkout as
+ * a percentage of the base — see SystemConfig key "service_fee_rate".
+ * `notes` carries human-readable qualifiers ("6 months", "annual", etc.).
+ */
+model DocumentPricing {
+  id           String       @id @default(uuid())
+  categoryId   String
+  documentType DocumentType
+  basePrice    Float
+  notes        String?
+  isActive     Boolean      @default(true)
+  createdAt    DateTime     @default(now())
+  updatedAt    DateTime     @updatedAt
+
+  category     VehicleCategory @relation(fields: [categoryId], references: [id], onDelete: Cascade)
+
+  @@unique([categoryId, documentType])
+  @@index([documentType])
+  @@map("document_pricing")
 }
 
 model Document {

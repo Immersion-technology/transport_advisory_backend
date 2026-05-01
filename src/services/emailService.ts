@@ -42,7 +42,7 @@ export const buildReminderEmail = (params: {
 <head>
   <meta charset="utf-8">
   <meta name="viewport" content="width=device-width, initial-scale=1.0">
-  <title>Document Reminder — AutoDoc</title>
+  <title>Document Reminder — Transport Advisory Services</title>
 </head>
 <body style="margin:0;padding:0;background:#F5F5F0;font-family:'Helvetica Neue',Helvetica,Arial,sans-serif;">
   <table width="100%" cellpadding="0" cellspacing="0" style="background:#F5F5F0;padding:40px 0;">
@@ -62,7 +62,7 @@ export const buildReminderEmail = (params: {
                           </div>
                         </td>
                         <td style="padding-left:12px;vertical-align:middle;">
-                          <h1 style="color:#FFFFFF;margin:0;font-size:22px;font-weight:800;letter-spacing:-0.5px;line-height:1;">AutoDoc</h1>
+                          <h1 style="color:#FFFFFF;margin:0;font-size:22px;font-weight:800;letter-spacing:-0.5px;line-height:1;">Transport Advisory Services</h1>
                           <p style="color:#6EE7B7;margin:2px 0 0;font-size:12px;">Vehicle Compliance · Not Government Owned</p>
                         </td>
                       </tr>
@@ -139,14 +139,14 @@ export const buildReminderEmail = (params: {
               ` : ''}
 
               <p style="color:#9CA3AF;font-size:13px;text-align:center;margin:0;">
-                This reminder was sent from AutoDoc · <a href="${process.env.FRONTEND_URL}/settings/notifications" style="color:#059669;">Manage preferences</a>
+                This reminder was sent from Transport Advisory Services · <a href="${process.env.FRONTEND_URL}/settings/notifications" style="color:#059669;">Manage preferences</a>
               </p>
             </td>
           </tr>
           <tr>
             <td style="background:#F9FAFB;padding:20px 40px;border-top:1px solid #E5E7EB;">
               <p style="color:#9CA3AF;font-size:12px;margin:0;text-align:center;">
-                © ${new Date().getFullYear()} AutoDoc · autodoc.ng · Lagos, Nigeria · Not government owned
+                © ${new Date().getFullYear()} Transport Advisory Services · transportadvisory.ng · Lagos, Nigeria · Not government owned
               </p>
             </td>
           </tr>
@@ -166,9 +166,9 @@ export const buildMagicLinkEmail = (params: {
 }): string => {
   const { firstName, link, purpose, ttlMinutes } = params;
   const isWelcome = purpose === 'WELCOME';
-  const heading = isWelcome ? 'Your AutoDoc account is ready' : 'Sign in to AutoDoc';
+  const heading = isWelcome ? 'Your Transport Advisory Services account is ready' : 'Sign in to Transport Advisory Services';
   const lead = isWelcome
-    ? "We've created your AutoDoc account using the details from your service request. Click the button below to access your dashboard, track your application, and view your vehicle documents."
+    ? "We've created your Transport Advisory Services account using the details from your service request. Click the button below to access your dashboard, track your application, and view your vehicle documents."
     : 'Click the button below to sign in to your dashboard. No password needed.';
   const ctaLabel = isWelcome ? 'Open My Dashboard' : 'Sign In Now';
 
@@ -177,7 +177,7 @@ export const buildMagicLinkEmail = (params: {
 <head>
   <meta charset="utf-8">
   <meta name="viewport" content="width=device-width, initial-scale=1.0">
-  <title>${heading} — AutoDoc</title>
+  <title>${heading} — Transport Advisory Services</title>
 </head>
 <body style="margin:0;padding:0;background:#F5F5F0;font-family:'Helvetica Neue',Helvetica,Arial,sans-serif;">
   <table width="100%" cellpadding="0" cellspacing="0" style="background:#F5F5F0;padding:40px 0;">
@@ -194,7 +194,7 @@ export const buildMagicLinkEmail = (params: {
                     </div>
                   </td>
                   <td style="padding-left:12px;vertical-align:middle;">
-                    <h1 style="color:#FFFFFF;margin:0;font-size:22px;font-weight:800;letter-spacing:-0.5px;line-height:1;">AutoDoc</h1>
+                    <h1 style="color:#FFFFFF;margin:0;font-size:22px;font-weight:800;letter-spacing:-0.5px;line-height:1;">Transport Advisory Services</h1>
                     <p style="color:#6EE7B7;margin:2px 0 0;font-size:12px;">Vehicle Compliance · Not Government Owned</p>
                   </td>
                 </tr>
@@ -226,7 +226,7 @@ export const buildMagicLinkEmail = (params: {
               ${isWelcome ? `
               <div style="background:#FEF3C7;border:1px solid #FDE68A;border-radius:8px;padding:14px 16px;margin-bottom:8px;">
                 <p style="color:#92400E;font-size:13px;line-height:1.5;margin:0;">
-                  <strong>Caveat:</strong> AutoDoc is a private vehicle compliance service — <em>not government owned</em>. We facilitate document tracking, renewal, and delivery on your behalf.
+                  <strong>Caveat:</strong> Transport Advisory Services is a private vehicle compliance service — <em>not government owned</em>. We facilitate document tracking, renewal, and delivery on your behalf.
                 </p>
               </div>
               ` : ''}
@@ -239,7 +239,7 @@ export const buildMagicLinkEmail = (params: {
           <tr>
             <td style="background:#F9FAFB;padding:20px 40px;border-top:1px solid #E5E7EB;">
               <p style="color:#9CA3AF;font-size:12px;margin:0;text-align:center;">
-                © ${new Date().getFullYear()} AutoDoc · autodoc.ng · Lagos, Nigeria · Not government owned
+                © ${new Date().getFullYear()} Transport Advisory Services · transportadvisory.ng · Lagos, Nigeria · Not government owned
               </p>
             </td>
           </tr>
