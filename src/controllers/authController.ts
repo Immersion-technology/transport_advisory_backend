@@ -246,7 +246,7 @@ export const checkout = async (req: Request, res: Response): Promise<void> => {
     //          a category. We persist the application with totalAmount=0 and
     //          gate `initPayment` on `vehicle.isVerified`.
     const d = service.delivery;
-    const deliveryFee = d?.tier === 'SAME_DAY' ? 8000 : d?.tier === 'EXPRESS' ? 4500 : d?.tier === 'STANDARD' ? 2000 : 0;
+    const deliveryFee = d?.tier === 'SAME_DAY' ? 8000 : d?.tier === 'EXPRESS' ? 4500 : d?.tier === 'STANDARD' ? 3000 : 0;
 
     let governmentFee = 0;
     let serviceFee = 0;

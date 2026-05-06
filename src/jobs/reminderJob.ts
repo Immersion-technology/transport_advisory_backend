@@ -5,7 +5,7 @@ import { sendEmail, buildReminderEmail } from '../services/emailService';
 import { sendSMS, buildReminderSMS } from '../services/smsService';
 import { format, differenceInDays } from 'date-fns';
 
-const TRIGGER_DAYS = [30, 7, 1, 0];
+const TRIGGER_DAYS = [30, 14, 7];
 
 const docTypeLabels: Record<string, string> = {
   MOTOR_INSURANCE: 'Motor Insurance',
@@ -70,9 +70,7 @@ export const processReminders = async () => {
         });
         await sendEmail({
           to: user.email,
-          subject: daysLeft === 0
-            ? `URGENT: Your ${docTypeLabels[doc.type]} has expired`
-            : `Reminder: ${docTypeLabels[doc.type]} expires in ${daysLeft} day${daysLeft !== 1 ? 's' : ''}`,
+          subject: `Reminder: Your ${docTypeLabels[doc.type]} expires in ${daysLeft} day${daysLeft !== 1 ? 's' : ''}`,
           html,
         });
       } catch (err) {

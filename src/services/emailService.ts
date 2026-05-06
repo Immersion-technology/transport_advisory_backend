@@ -33,8 +33,8 @@ export const buildReminderEmail = (params: {
   renewalLink: string;
 }): string => {
   const { firstName, plateNumber, documentType, expiryDate, daysLeft, confirmToken, renewalLink } = params;
-  const urgencyColor = daysLeft <= 1 ? '#DC2626' : daysLeft <= 7 ? '#D97706' : '#059669';
-  const urgencyLabel = daysLeft === 0 ? 'EXPIRED' : daysLeft === 1 ? 'EXPIRES TOMORROW' : `${daysLeft} DAYS LEFT`;
+  const urgencyColor = daysLeft <= 7 ? '#D97706' : '#059669';
+  const urgencyLabel = `${daysLeft} DAYS LEFT`;
 
   return `
 <!DOCTYPE html>
@@ -79,12 +79,7 @@ export const buildReminderEmail = (params: {
             <td style="padding:40px;">
               <p style="color:#374151;font-size:16px;margin:0 0 8px;">Dear ${firstName},</p>
               <p style="color:#6B7280;font-size:15px;line-height:1.6;margin:0 0 32px;">
-                ${daysLeft === 0
-                  ? 'Your vehicle document has <strong style="color:#DC2626;">expired today</strong>. Please renew immediately to avoid fines and impoundment.'
-                  : daysLeft === 1
-                  ? 'Your vehicle document <strong style="color:#D97706;">expires tomorrow</strong>. Act now to avoid penalties.'
-                  : `Your vehicle document is due for renewal in <strong style="color:${urgencyColor};">${daysLeft} days</strong>.`
-                }
+                Your vehicle document is due for renewal in <strong style="color:${urgencyColor};">${daysLeft} days</strong>. Renew early to avoid fines and impoundment.
               </p>
 
               <table width="100%" cellpadding="0" cellspacing="0" style="background:#F9FAFB;border-radius:10px;border:1px solid #E5E7EB;margin-bottom:32px;">
@@ -128,7 +123,6 @@ export const buildReminderEmail = (params: {
                 </tr>
               </table>
 
-              ${daysLeft > 1 ? `
               <table width="100%" cellpadding="0" cellspacing="0" style="margin-bottom:32px;">
                 <tr>
                   <td align="center">
@@ -136,7 +130,6 @@ export const buildReminderEmail = (params: {
                   </td>
                 </tr>
               </table>
-              ` : ''}
 
               <p style="color:#9CA3AF;font-size:13px;text-align:center;margin:0;">
                 This reminder was sent from Transport Advisory Services · <a href="${process.env.FRONTEND_URL}/settings/notifications" style="color:#059669;">Manage preferences</a>

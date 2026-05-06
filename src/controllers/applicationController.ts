@@ -32,7 +32,7 @@ export const createApplication = async (req: AuthRequest, res: Response): Promis
     // Pricing is driven by (vehicle.category, documentType). Renewals on
     // unverified vehicles still create the application, but with totalAmount=0
     // — payment is gated until admin verifies and assigns a category.
-    const deliveryFee = deliveryTier === 'SAME_DAY' ? 8000 : deliveryTier === 'EXPRESS' ? 4500 : deliveryTier === 'STANDARD' ? 2000 : 0;
+    const deliveryFee = deliveryTier === 'SAME_DAY' ? 8000 : deliveryTier === 'EXPRESS' ? 4500 : deliveryTier === 'STANDARD' ? 3000 : 0;
     let governmentFee = 0;
     let serviceFee = 0;
     let total = 0;
