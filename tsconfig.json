@@ -15,7 +15,7 @@
     "noImplicitAny": false,
     "strictNullChecks": false,
     "allowJs": true,
-    "types": ["node"]
+    "types": ["node", "express", "multer"]
   },
   "include": ["src/**/*", "prisma/**/*"],
   "exclude": ["node_modules", "dist"]
