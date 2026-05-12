@@ -1,8 +1,9 @@
-import multer from 'multer';
+import multer, { FileFilterCallback } from 'multer';
+import type { Request } from 'express';
 
 const storage = multer.memoryStorage();
 
-const fileFilter = (_req: Express.Request, file: Express.Multer.File, cb: multer.FileFilterCallback) => {
+const fileFilter = (_req: Request, file: { mimetype: string }, cb: FileFilterCallback) => {
   const allowed = ['image/jpeg', 'image/png', 'image/webp', 'application/pdf'];
   if (allowed.includes(file.mimetype)) {
     cb(null, true);
@@ -13,6 +14,6 @@ const fileFilter = (_req: Express.Request, file: Express.Multer.File, cb: multer
 
 export const upload = multer({
   storage,
-  fileFilter,
+  fileFilter: fileFilter as multer.Options['fileFilter'],
   limits: { fileSize: 10 * 1024 * 1024 }, // 10MB
 });

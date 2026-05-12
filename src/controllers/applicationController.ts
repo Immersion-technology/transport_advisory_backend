@@ -96,7 +96,7 @@ export const createApplication = async (req: AuthRequest, res: Response): Promis
 export const uploadApplicationDocs = async (req: AuthRequest, res: Response): Promise<void> => {
   try {
     const { applicationId } = req.params;
-    const files = req.files as Express.Multer.File[];
+    const files = req.files as Array<{ originalname: string; buffer: Buffer; mimetype: string; size: number }>;
 
     const application = await prisma.application.findFirst({
       where: { id: applicationId, userId: req.user!.id },
