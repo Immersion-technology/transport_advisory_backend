@@ -1,7 +1,7 @@
 import { Router } from 'express';
 import {
   getDashboardStats, getAllApplications, getApplicationDetail, updateApplicationStatus,
-  uploadCompletedDocument, getUnconfirmedReminders, getAllUsers,
+  uploadCompletedDocument, getUnconfirmedReminders, getAllUsers, updateUserStatus,
   getAllDeliveries, updateDeliveryStatus,
 } from '../controllers/adminController';
 import {
@@ -26,6 +26,7 @@ router.get('/stats', getDashboardStats);
 
 // Users — needs MANAGE_USERS
 router.get('/users', requirePermission('MANAGE_USERS'), getAllUsers);
+router.put('/users/:id/status', requirePermission('MANAGE_USERS'), updateUserStatus);
 
 // Applications — needs MANAGE_APPLICATIONS
 router.get('/applications', requirePermission('MANAGE_APPLICATIONS'), getAllApplications);

@@ -98,6 +98,7 @@ model User {
   subscriptionTier  SubscriptionTier  @default(FOUNDING_FREE)
   subscriberNumber  Int?              @unique
   isActive          Boolean           @default(true)
+  suspensionReason  String?
   emailVerified     Boolean           @default(false)
   createdAt         DateTime          @default(now())
   updatedAt         DateTime          @updatedAt

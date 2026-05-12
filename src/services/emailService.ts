@@ -152,6 +152,114 @@ export const buildReminderEmail = (params: {
 </html>`;
 };
 
+export const buildAccountStatusEmail = (params: {
+  firstName: string;
+  action: 'SUSPENDED' | 'BLOCKED' | 'ACTIVATED';
+  reason?: string;
+}): string => {
+  const { firstName, action, reason } = params;
+  const isActivated = action === 'ACTIVATED';
+  const isSuspended = action === 'SUSPENDED';
+  const heading = isActivated
+    ? 'Your account has been reactivated'
+    : isSuspended ? 'Your account has been suspended' : 'Your account has been blocked';
+  const lead = isActivated
+    ? 'Your Transport Advisory Services account has been reactivated. You can now sign in and access your dashboard.'
+    : isSuspended
+    ? 'Your Transport Advisory Services account has been temporarily suspended.'
+    : 'Your Transport Advisory Services account has been blocked.';
+  const accentColor = isActivated ? '#059669' : '#DC2626';
+  const badgeLabel = action;
+
+  return `<!DOCTYPE html>
+<html>
+<head>
+  <meta charset="utf-8">
+  <meta name="viewport" content="width=device-width, initial-scale=1.0">
+  <title>${heading} — Transport Advisory Services</title>
+</head>
+<body style="margin:0;padding:0;background:#F5F5F0;font-family:'Helvetica Neue',Helvetica,Arial,sans-serif;">
+  <table width="100%" cellpadding="0" cellspacing="0" style="background:#F5F5F0;padding:40px 0;">
+    <tr>
+      <td align="center">
+        <table width="600" cellpadding="0" cellspacing="0" style="background:#ffffff;border-radius:12px;overflow:hidden;box-shadow:0 4px 24px rgba(0,0,0,0.08);">
+          <tr>
+            <td style="background:#0A3828;padding:32px 40px;">
+              <table width="100%" cellpadding="0" cellspacing="0">
+                <tr>
+                  <td>
+                    <table cellpadding="0" cellspacing="0">
+                      <tr>
+                        <td>
+                          <div style="width:40px;height:40px;background:linear-gradient(135deg,#0A3828,#166534);border:1px solid rgba(110,231,183,0.35);border-radius:9px;display:inline-block;vertical-align:middle;text-align:center;line-height:40px;">
+                            <span style="color:#fff;font-size:22px;font-weight:900;letter-spacing:-1px;">✓</span>
+                          </div>
+                        </td>
+                        <td style="padding-left:12px;vertical-align:middle;">
+                          <h1 style="color:#FFFFFF;margin:0;font-size:22px;font-weight:800;letter-spacing:-0.5px;line-height:1;">Transport Advisory Services</h1>
+                          <p style="color:#6EE7B7;margin:2px 0 0;font-size:12px;">Vehicle Compliance · Not Government Owned</p>
+                        </td>
+                      </tr>
+                    </table>
+                  </td>
+                  <td align="right">
+                    <span style="background:${accentColor};color:#fff;padding:6px 14px;border-radius:20px;font-size:12px;font-weight:700;letter-spacing:0.5px;">${badgeLabel}</span>
+                  </td>
+                </tr>
+              </table>
+            </td>
+          </tr>
+          <tr>
+            <td style="padding:40px;">
+              <h2 style="color:#111827;font-size:24px;font-weight:800;margin:0 0 12px;letter-spacing:-0.3px;">${heading}</h2>
+              <p style="color:#374151;font-size:16px;margin:0 0 8px;">Dear ${firstName},</p>
+              <p style="color:#6B7280;font-size:15px;line-height:1.6;margin:0 0 24px;">${lead}</p>
+
+              ${reason ? `
+              <table width="100%" cellpadding="0" cellspacing="0" style="background:#FEF2F2;border:1px solid #FECACA;border-radius:10px;margin-bottom:28px;">
+                <tr>
+                  <td style="padding:20px 24px;">
+                    <p style="color:#991B1B;font-size:12px;font-weight:700;text-transform:uppercase;letter-spacing:0.5px;margin:0 0 8px;">Reason provided by admin</p>
+                    <p style="color:#7F1D1D;font-size:15px;line-height:1.6;margin:0;">${reason}</p>
+                  </td>
+                </tr>
+              </table>
+              ` : ''}
+
+              ${!isActivated ? `
+              <p style="color:#6B7280;font-size:14px;line-height:1.6;margin:0 0 24px;">
+                If you believe this is a mistake or wish to appeal, please contact our support team by replying to this email.
+              </p>
+              ` : `
+              <table width="100%" cellpadding="0" cellspacing="0" style="margin-bottom:24px;">
+                <tr>
+                  <td align="center">
+                    <a href="${process.env.FRONTEND_URL}/login" style="display:inline-block;background:#0A3828;color:#ffffff;text-decoration:none;padding:16px 40px;border-radius:8px;font-size:16px;font-weight:700;letter-spacing:0.3px;">Go to Dashboard →</a>
+                  </td>
+                </tr>
+              </table>
+              `}
+
+              <p style="color:#9CA3AF;font-size:13px;text-align:center;margin:0;">
+                Transport Advisory Services · <a href="mailto:${process.env.SMTP_USER}" style="color:#059669;">${process.env.SMTP_USER}</a>
+              </p>
+            </td>
+          </tr>
+          <tr>
+            <td style="background:#F9FAFB;padding:20px 40px;border-top:1px solid #E5E7EB;">
+              <p style="color:#9CA3AF;font-size:12px;margin:0;text-align:center;">
+                © ${new Date().getFullYear()} Transport Advisory Services · transportadvisory.ng · Lagos, Nigeria · Not government owned
+              </p>
+            </td>
+          </tr>
+        </table>
+      </td>
+    </tr>
+  </table>
+</body>
+</html>`;
+};
+
 export const buildMagicLinkEmail = (params: {
   firstName: string;
   link: string;

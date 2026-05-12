@@ -4,7 +4,7 @@ import prisma from '../utils/prisma';
 import { sendSuccess, sendError } from '../utils/response';
 import { AuthRequest } from '../types';
 import { uploadFile } from '../services/cloudinaryService';
-import { sendEmail } from '../services/emailService';
+import { sendEmail, buildAccountStatusEmail } from '../services/emailService';
 import { sendSMS } from '../services/smsService';
 
 export const getDashboardStats = async (_req: AuthRequest, res: Response): Promise<void> => {
@@ -247,6 +247,48 @@ export const getApplicationDetail = async (req: AuthRequest, res: Response): Pro
     sendSuccess(res, 'Application fetched', application);
   } catch (error) {
     sendError(res, 'Failed to fetch application', 500);
+  }
+};
+
+export const updateUserStatus = async (req: AuthRequest, res: Response): Promise<void> => {
+  try {
+    const { id } = req.params;
+    const { action, reason } = req.body as { action: 'SUSPEND' | 'BLOCK' | 'ACTIVATE'; reason?: string };
+
+    if (!['SUSPEND', 'BLOCK', 'ACTIVATE'].includes(action)) {
+      sendError(res, 'Invalid action. Must be SUSPEND, BLOCK, or ACTIVATE.', 400); return;
+    }
+
+    const target = await prisma.user.findUnique({ where: { id } });
+    if (!target) { sendError(res, 'User not found', 404); return; }
+    if (target.role === 'ADMIN') { sendError(res, 'Admin accounts cannot be suspended via this endpoint.', 403); return; }
+
+    const isActive = action === 'ACTIVATE';
+    const updated = await prisma.user.update({
+      where: { id },
+      data: {
+        isActive,
+        suspensionReason: isActive ? null : (reason ?? null),
+      },
+      select: { id: true, firstName: true, lastName: true, email: true, isActive: true, suspensionReason: true },
+    });
+
+    const emailAction = action === 'ACTIVATE' ? 'ACTIVATED' : action === 'SUSPEND' ? 'SUSPENDED' : 'BLOCKED';
+    try {
+      await sendEmail({
+        to: target.email,
+        subject: emailAction === 'ACTIVATED'
+          ? 'Your Transport Advisory Services account has been reactivated'
+          : `Your Transport Advisory Services account has been ${emailAction.toLowerCase()}`,
+        html: buildAccountStatusEmail({ firstName: target.firstName, action: emailAction, reason }),
+      });
+    } catch (_) {
+      // Email failure must not block the status update response
+    }
+
+    sendSuccess(res, `User ${action.toLowerCase()}d successfully`, updated);
+  } catch (error) {
+    sendError(res, 'Failed to update user status', 500);
   }
 };
 
