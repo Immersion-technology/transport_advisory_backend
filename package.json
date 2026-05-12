@@ -13,6 +13,7 @@
     "db:push": "prisma db push",
     "db:studio": "prisma studio",
     "db:seed": "ts-node prisma/seed.ts",
+    "db:clean": "ts-node prisma/cleandb.ts",
     "test": "echo \"Error: no test specified\" && exit 1"
   },
   "dependencies": {
